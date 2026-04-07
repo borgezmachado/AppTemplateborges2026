@@ -5,70 +5,56 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.storage.StorageReference
 import com.ifpr.androidapptemplate.R
 import com.ifpr.androidapptemplate.baseclasses.Item
 import com.ifpr.androidapptemplate.databinding.FragmentDashboardBinding
 
-
 class DashboardFragment : Fragment() {
 
     private var _binding: FragmentDashboardBinding? = null
+    private val binding get() = _binding!!
 
+    // Referências dos componentes de UI
     private lateinit var enderecoEditText: EditText
+    private lateinit var descricaoEditText: EditText
     private lateinit var itemImageView: ImageView
-    private var imageUri: Uri? = null
-
-
-    //TODO("Declare aqui as outras variaveis do tipo EditText que foram inseridas no layout")
     private lateinit var salvarButton: Button
     private lateinit var selectImageButton: Button
+
+    // Firebase e Controle de Imagem
     private lateinit var databaseReference: DatabaseReference
-    private lateinit var storageReference: StorageReference
     private lateinit var auth: FirebaseAuth
+    private var imageUri: Uri? = null
 
     companion object {
         private const val PICK_IMAGE_REQUEST = 1
     }
 
-    // This property is only valid between onCreateView and
-    // onDestroyView.
-    private val binding get() = _binding!!
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val dashboardViewModel = ViewModelProvider(this).get(DashboardViewModel::class.java)
-
         _binding = FragmentDashboardBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
-        val textView: TextView = binding.textDashboard
-        dashboardViewModel.text.observe(viewLifecycleOwner) {
-            textView.text = it
-        }
-
-        val view = inflater.inflate(R.layout.fragment_dashboard, container, false)
-        itemImageView = view.findViewById(R.id.image_item)
-        salvarButton = view.findViewById(R.id.salvarItemButton)
-        selectImageButton = view.findViewById(R.id.button_select_image)
-        enderecoEditText = view.findViewById(R.id.enderecoItemEditText)
-        //TODO("Capture aqui os outro campos que foram inseridos no layout. Por exemplo, ate
-        // o momento so foi capturado o endereco (EditText)")
+        // Inicialização dos componentes via ID (conforme seu XML)
+        itemImageView = root.findViewById(R.id.image_item)
+        salvarButton = root.findViewById(R.id.salvarItemButton)
+        selectImageButton = root.findViewById(R.id.button_select_image)
+        enderecoEditText = root.findViewById(R.id.enderecoItemEditText)
+        descricaoEditText = root.findViewById(R.id.descricaoItemEditText)
 
         auth = FirebaseAuth.getInstance()
 
@@ -77,10 +63,10 @@ class DashboardFragment : Fragment() {
         }
 
         salvarButton.setOnClickListener {
-            salvarItem()
+            valdarESalvar()
         }
 
-        return view
+        return root
     }
 
     override fun onDestroyView() {
@@ -95,38 +81,47 @@ class DashboardFragment : Fragment() {
         startActivityForResult(intent, PICK_IMAGE_REQUEST)
     }
 
-    private fun salvarItem() {
-        //TODO("Capture aqui o conteudo que esta nos outros editTexts que foram criados")
+    private fun valdarESalvar() {
         val endereco = enderecoEditText.text.toString().trim()
+        val descricao = descricaoEditText.text.toString().trim()
 
-        if (endereco.isEmpty() || imageUri == null) {
-            Toast.makeText(context, "Por favor, preencha todos os campos", Toast.LENGTH_SHORT)
-                .show()
+        // Validação simples de campos vazios
+        if (endereco.isEmpty() || descricao.isEmpty()) {
+            Toast.makeText(context, "Preencha todos os campos!", Toast.LENGTH_SHORT).show()
             return
         }
-        uploadImageToFirestore()
+
+        if (imageUri == null) {
+            Toast.makeText(context, "Selecione uma imagem!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        processarImagemESalvar(endereco, descricao)
     }
 
-
-    private fun uploadImageToFirestore() {
-        if (imageUri != null) {
+    private fun processarImagemESalvar(endereco: String, descricao: String) {
+        try {
             val inputStream = context?.contentResolver?.openInputStream(imageUri!!)
             val bytes = inputStream?.readBytes()
             inputStream?.close()
 
             if (bytes != null) {
                 val base64Image = Base64.encodeToString(bytes, Base64.DEFAULT)
-                val endereco = enderecoEditText.text.toString().trim()
-                //TODO("Capture aqui o conteudo que esta nos outros editTexts que foram criados")
 
-                val item = Item(endereco, base64Image)
+                // Criando o objeto com os dados coletados
+                val item = Item(
+                    endereco = endereco,
+                    descricao = descricao,
+                    base64Image = base64Image
+                )
 
                 saveItemIntoDatabase(item)
             }
+        } catch (e: Exception) {
+            Log.e("DashboardFragment", "Erro ao processar imagem", e)
+            Toast.makeText(context, "Erro ao processar imagem", Toast.LENGTH_SHORT).show()
         }
     }
-
-
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -139,23 +134,35 @@ class DashboardFragment : Fragment() {
     }
 
     private fun saveItemIntoDatabase(item: Item) {
-        //TODO("Altere a raiz que sera criada no seu banco de dados do realtime database.
-        // Renomeie a raiz itens")
+        // IMPORTANTE: O caminho "itens" deve ser igual ao definido nas suas Rules do Firebase
         databaseReference = FirebaseDatabase.getInstance().getReference("itens")
 
-        // Cria uma chave unica para o novo item
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            Toast.makeText(context, "Usuário não autenticado!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val itemId = databaseReference.push().key
         if (itemId != null) {
-            databaseReference.child(auth.uid.toString()).child(itemId).setValue(item)
+            // Salvando no caminho: itens/ID_DO_USUARIO/ID_DO_ITEM
+            databaseReference.child(userId).child(itemId).setValue(item)
                 .addOnSuccessListener {
-                    Toast.makeText(context, "Item cadastrado com sucesso!", Toast.LENGTH_SHORT)
-                        .show()
-                    requireActivity().supportFragmentManager.popBackStack()
-                }.addOnFailureListener {
-                    Toast.makeText(context, "Falha ao cadastrar o item", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Compra salva com sucesso!", Toast.LENGTH_SHORT).show()
+                    limparCampos()
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
                 }
-        } else {
-            Toast.makeText(context, "Erro ao gerar o ID do item", Toast.LENGTH_SHORT).show()
+                .addOnFailureListener { e ->
+                    Log.e("FirebaseError", "Erro ao salvar", e)
+                    Toast.makeText(context, "Erro de permissão: ${e.message}", Toast.LENGTH_LONG).show()
+                }
         }
+    }
+
+    private fun limparCampos() {
+        enderecoEditText.text.clear()
+        descricaoEditText.text.clear()
+        itemImageView.setImageResource(android.R.drawable.gallery_thumb)
+        imageUri = null
     }
 }
