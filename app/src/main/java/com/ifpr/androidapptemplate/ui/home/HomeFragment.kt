@@ -52,12 +52,13 @@ class HomeFragment : Fragment() {
     private lateinit var locationCallback: LocationCallback
     private lateinit var locationRequest: LocationRequest
 
+    // Armazena a localização atual para cálculos
+    private var lastKnownLocation: Location? = null
+
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1
     }
 
-    // This property is only valid between onCreateView and
-    // onDestroyView.
     private val binding get() = _binding!!
 
     override fun onCreateView(
@@ -69,8 +70,8 @@ class HomeFragment : Fragment() {
 
         inicializaGerenciamentoLocalizacao(view)
 
-        val container = view.findViewById<LinearLayout>(R.id.itemContainer)
-        carregarItensMarketplace(container)
+        val containerLayout = view.findViewById<LinearLayout>(R.id.itemContainer)
+        carregarItensMarketplace(containerLayout)
 
         val fab = view.findViewById<FloatingActionButton>(R.id.fab_ai)
 
@@ -85,6 +86,9 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        if (::locationCallback.isInitialized) {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        }
         _binding = null
     }
 
@@ -151,15 +155,20 @@ class HomeFragment : Fragment() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
+                    lastKnownLocation = location
                     displayAddress(location)
+
+                    val containerLayout = view?.findViewById<LinearLayout>(R.id.itemContainer)
+                    if (containerLayout != null) {
+                        carregarItensMarketplace(containerLayout)
+                    }
                 }
             }
         }
 
         locationRequest = LocationRequest.create().apply {
-            interval = 30000 // Intervalo em milissegundos para atualizacoes de localizacao
-            fastestInterval =
-                30000 // O menor intervalo de tempo para receber atualizacoes de localizacao
+            interval = 30000
+            fastestInterval = 30000
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
 
@@ -172,10 +181,10 @@ class HomeFragment : Fragment() {
 
     private fun displayAddress(location: Location) {
         val geocoder = Geocoder(requireContext(), Locale.getDefault())
-        val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
                 val address = addresses?.firstOrNull()?.getAddressLine(0) ?: "Address not found"
                 withContext(Dispatchers.Main) {
                     currentAddressTextView.text = address
@@ -204,9 +213,31 @@ class HomeFragment : Fragment() {
 
                         val imageView = itemView.findViewById<ImageView>(R.id.item_image)
                         val enderecoView = itemView.findViewById<TextView>(R.id.item_endereco)
+                        val descricaoView = itemView.findViewById<TextView>(R.id.item_descricao)
+                        val distanciaView = itemView.findViewById<TextView>(R.id.item_distancia)
 
+                        // CORREÇÃO: Atribuindo o nome correto do item vindo do Firebase
+                        descricaoView.text = item.descricao ?: "Sem descrição"
                         enderecoView.text = "Endereço: ${item.endereco ?: "Não informado"}"
 
+                        // CÁLCULO DE DISTÂNCIA
+                        if (lastKnownLocation != null && item.latitude != 0.0 && item.longitude != 0.0) {
+                            val results = FloatArray(1)
+                            Location.distanceBetween(
+                                lastKnownLocation!!.latitude,
+                                lastKnownLocation!!.longitude,
+                                item.latitude,
+                                item.longitude,
+                                results
+                            )
+                            val distanceInMeters = results[0]
+                            distanciaView?.text = formatarDistancia(distanceInMeters)
+                            distanciaView?.visibility = View.VISIBLE
+                        } else {
+                            distanciaView?.visibility = View.GONE
+                        }
+
+                        // IMAGEM
                         if (!item.imageUrl.isNullOrEmpty()) {
                             Glide.with(container.context).load(item.imageUrl).into(imageView)
                         } else if (!item.base64Image.isNullOrEmpty()) {
@@ -226,5 +257,14 @@ class HomeFragment : Fragment() {
                 Toast.makeText(container.context, "Erro ao carregar dados", Toast.LENGTH_SHORT).show()
             }
         })
+    }
+
+    private fun formatarDistancia(metros: Float): String {
+        return if (metros < 1000) {
+            "${metros.toInt()}m de distância"
+        } else {
+            val km = metros / 1000
+            "${"%.1f".format(km)}km de distância"
+        }
     }
 }

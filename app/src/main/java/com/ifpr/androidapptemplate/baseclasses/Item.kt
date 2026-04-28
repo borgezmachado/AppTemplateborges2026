@@ -4,9 +4,14 @@ import com.google.firebase.database.IgnoreExtraProperties
 
 @IgnoreExtraProperties
 data class Item(
-    var endereco: String? = null,
-    var descricao: String? = null, // Novo campo relacionado ao seu formulário
-    var base64Image: String? = null,
-    var imageUrl: String? = null,
-    var id: String? = null // Recomendado para identificar cada compra de forma única
+    var id: String? = null,             // ID único da compra
+    var descricao: String? = null,      // Título/Descrição do item
+    var endereco: String? = null,       // Endereço em texto
+    var base64Image: String? = null,    // Imagem em Base64
+    var imageUrl: String? = null,       // URL da imagem (se usar Firebase Storage)
+
+    // NOVOS CAMPOS PARA O CÁLCULO DE DISTÂNCIA
+    // Iniciamos com 0.0 para evitar erros de valor nulo
+    var latitude: Double = -25.110037,
+    var longitude: Double = -50.155449,
 )
