@@ -1,45 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/ai_logic_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:background="#F8F9FA"
     android:fitsSystemWindows="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="20dp">
 
-        <EditText
-            android:id="@+id/prompt_input"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:gravity="top"
-            android:hint="Digite seu prompt"
-            android:inputType="textMultiLine"
-            android:minHeight="100dp" />
+            android:text="Assistente Inteligente"
+            android:textColor="#1A73E8"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"
+            android:gravity="center" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="O que você deseja saber?"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#5F6368"
+                    android:layout_marginBottom="8dp"/>
+
+                <EditText
+                    android:id="@+id/prompt_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:gravity="top"
+                    android:hint="Ex: Quais as ofertas de hoje?"
+                    android:inputType="textMultiLine"
+                    android:minHeight="120dp"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
         <Button
             android:id="@+id/btn_generate"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Gerar resposta" />
+            android:layout_height="60dp"
+            android:text="Gerar Resposta"
+            android:textAllCaps="false"
+            android:textSize="18sp"
+            android:backgroundTint="#1A73E8"
+            app:cornerRadius="12dp"
+            android:elevation="4dp"
+            app:icon="@android:drawable/ic_menu_send"
+            app:iconGravity="textStart" />
 
-        <ScrollView
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_result"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp">
+            android:layout_marginTop="24dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
 
-            <TextView
-                android:id="@+id/result_text"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Resultado aparecerá aqui"
-                android:textSize="16sp" />
-        </ScrollView>
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Resposta da IA"
+                    android:textSize="12sp"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.1"
+                    android:textColor="#1A73E8"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp"/>
+
+                <TextView
+                    android:id="@+id/result_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Aguardando sua pergunta..."
+                    android:textColor="#202124"
+                    android:textSize="16sp"
+                    android:lineSpacingExtra="4sp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
     </LinearLayout>
-</LinearLayout>
+</ScrollView>
